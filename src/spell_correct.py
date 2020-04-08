@@ -4,26 +4,27 @@ import pickle
 import re
 import gensim
 
+
 class SpellCorrect():
 
     def __init__(self, word_rank_from_pickle=True):
         self.wordToRank = self.read_word_ranker(word_rank_from_pickle)
 
-
-    def read_word_ranker(self,word_rank_from_pickle):
+    def read_word_ranker(self, word_rank_from_pickle):
         if word_rank_from_pickle:
-            spell_model = pickle.load(open("data/spell_model","rb"))
+            spell_model = pickle.load(open("data/spell_model", "rb"))
         else:
-            EMBEDDING_FILE_FASTTEXT="data/crawl-300d-2M.vec"
-            spell_model = gensim.models.KeyedVectors.load_word2vec_format(EMBEDDING_FILE_FASTTEXT,limit=300000)
+            EMBEDDING_FILE_FASTTEXT = "data/crawl-300d-2M.vec"
+            spell_model = gensim.models.KeyedVectors.load_word2vec_format(EMBEDDING_FILE_FASTTEXT, limit=300000)
         words = spell_model.index2word
         w_rank = {}
-        for i,word in enumerate(words):
+        for i, word in enumerate(words):
             w_rank[word] = i
         return w_rank
 
     # Use fast text as vocabulary
-    def words(self, text): return re.findall(r'\w+', text.lower())
+    def words(self, text):
+        return re.findall(r'\w+', text.lower())
 
     def P(self, word):
         "Probability of `word`."

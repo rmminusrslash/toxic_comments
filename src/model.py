@@ -7,7 +7,6 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import Dense, Embedding, Input, concatenate
 from sklearn.metrics import roc_auc_score
 
-from look_ahead import LookaheadOptimizerCallback
 from preprocess import preprocess
 
 
@@ -99,48 +98,42 @@ def submit(model, checkpoint_dir, prototyping=False):
 
 if __name__ == "__main__":
 
-    embeddings = np.load(open("data/embeddings_200", "rb"))
-    test_embeddings = np.load(open("data/test_embeddings_200", "rb"))
-    targets = np.load(open("data/targets_200", "rb"))
-
     # X_train, X_test, y_train, y_test = train_test_split(embeddings, targets, test_size=0.1, random_state=15)
 
-    for tr in [False, False]:
-        lookahead_callback = LookaheadOptimizerCallback()
-        callbacks = [
-            lookahead_callback,
+    callbacks = [
+            #RocAucEvaluation(),
             EarlyStopping(patience=4, monitor="val_auc", mode="max"),
             ModelCheckpoint(filepath='model', monitor="val_auc", mode="max", save_best_only=True, verbose=1)
         ]
 
-        prototyping = False
-        if prototyping:
-            model = get_model(np.zeros((1000, 501)))
-            x_train = np.array([[23] * 900] * 10)  # batchsize x seq_lenght
-            embeddings = np.array([[0.2] * 768] * 10)  # batchsize x bert_embeddings
-            y_train = np.array([[1, 0, 1, 0, 0, 1]] * 10)
-        else:
+    prototyping = False
+    if prototyping:
+        model = get_model(np.zeros((1000, 501)))
+        x_train = np.array([[23] * 900] * 10)  # batchsize x seq_lenght
+        embeddings = np.array([[0.2] * 768] * 10)  # batchsize x bert_embeddings
+        y_train = np.array([[1, 0, 1, 0, 0, 1]] * 10)
+    else:
+        embeddings = np.load(open("data/embeddings_200", "rb"))
+        x_train, x_test, y_train, matrix = preprocess(True)
+        model = get_model(matrix, with_fasttext=False, train_embeddings=False)
 
-            x_train, x_test, y_train, matrix = preprocess(True)
-            model = get_model(matrix, with_fasttext=True, train_embeddings=tr)
 
 
+    history = model.fit([x_train, embeddings], y_train,
+                        class_weight=None,
+                        epochs=20,
+                        batch_size=512,
+                        validation_split=.1,
+                        callbacks=callbacks,
+                        verbose=1)
 
-        history = model.fit([x_train, embeddings], y_train,
-                            class_weight=None,
-                            epochs=20,
-                            batch_size=512,
-                            validation_split=.1,
-                            callbacks=callbacks,
-                            verbose=1)
+    model.summary()
 
-        model.summary()
+    submit(model, "model", prototyping=False)
+    import os
 
-        submit(model, "model", prototyping=False)
-        import os
-
-        description = "Bert  fixed, fasttext +glove trainable=%s, with spell, feed forward network" % tr
-        os.system(
+    description = "Bert  fixed, fasttext +glove trainable=False, with spell, feed forward network"
+    os.system(
             'kaggle competitions submit -c jigsaw-toxic-comment-classification-challenge -f submission.csv -m "%s"' % description)
 
 

@@ -10,15 +10,24 @@ from unidecode import unidecode
 
 from spell_correct import SpellCorrect
 
-# create logger with 'spam_application'
+logging.basicConfig()
 logger = logging.getLogger("preprocessing")
 logger.setLevel(logging.INFO)
 
 
-def encoded_data():
-    logger.info("Encoding data")
-    train = pd.read_csv("data/train.csv")
-    test = pd.read_csv("data/test.csv")
+def encoded_data(protopying=True, from_pickle=False):
+
+    if from_pickle:
+        x_train_encoded_padded_sequences=pickle.load(open("data/x_train_encoded_padded_sequences", "rb"))
+        y_train=pickle.load(open("data/y_train", "rb"))
+        x_test_encoded_padded_sequences=pickle.load(open("data/x_test_encoded_padded_sequences", "rb"))
+        word_index=pickle.load(open("data/word_index", "rb"))
+        return x_train_encoded_padded_sequences, x_test_encoded_padded_sequences, y_train, word_index
+
+
+    logger.info("Cleaning train and test data")
+    train = pd.read_csv("data/train.csv", nrows= 1000 if protopying else None)
+    test = pd.read_csv("data/test.csv", nrows= 1000 if protopying else None)
 
     # 2.  remove non-ascii
     special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]', re.IGNORECASE)
@@ -35,17 +44,25 @@ def encoded_data():
     y_train = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
     X_test = test['clean_text'].fillna("something").values
 
-    tokenizer = text.Tokenizer(num_words=None)
-    tokenizer.fit_on_texts(list(X_train) + list(X_test))
+    logger.info("Encoding and padding sequences")
+    tokenizer = text.Tokenizer(num_words=None,oov_token="oov")
+    tokenizer.fit_on_texts(list(X_train))
+
+    logger.info("Most common words: %s" % tokenizer.word_index)
 
     maxlen = 900
     X_train_sequence = tokenizer.texts_to_sequences(X_train)
     X_test_sequence = tokenizer.texts_to_sequences(X_test)
 
-    x_train = sequence.pad_sequences(X_train_sequence, maxlen=maxlen)
-    x_test = sequence.pad_sequences(X_test_sequence, maxlen=maxlen)
+    x_train_encoded_padded_sequences = sequence.pad_sequences(X_train_sequence, maxlen=maxlen)
+    x_test_encoded_padded_sequences = sequence.pad_sequences(X_test_sequence, maxlen=maxlen)
 
-    return x_train, x_test, y_train, tokenizer
+    pickle.dump(x_train_encoded_padded_sequences, open("data/x_train_encoded_padded_sequences", "wb"))
+    pickle.dump(x_test_encoded_padded_sequences, open("data/x_train_encoded_padded_sequences", "wb"))
+    pickle.dump(y_train, open("data/y_train", "wb"))
+    pickle.dump(tokenizer.word_index, open("data/word_index", "wb"))
+
+    return x_train_encoded_padded_sequences, x_test_encoded_padded_sequences, y_train, tokenizer.word_index
 
 
 def read_embeddings(from_picked=True):
@@ -137,10 +154,8 @@ def create_embedding_matrix(word_index, from_picked=True):
 
 
 def preprocess(from_picked=True):
-    x_train, x_test, y_train, tokenizer = encoded_data()
-    import gc
-    gc.collect()
-    matrix = create_embedding_matrix(tokenizer.word_index, from_picked)
+    x_train, x_test, y_train, word_index = encoded_data()
+    matrix = create_embedding_matrix(word_index, from_picked)
     return x_train, x_test, y_train, matrix
 
 
