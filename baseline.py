@@ -49,7 +49,8 @@ def train_baseline():
     n_grams = 1  # 1-gram performed better or equal than bi-grams, original notebook=2
     regularization = 0.2  # more regularization performed, original notebook: C=4
     log_level_training = 0  # replace with 1 for more verbosity
-    binary_conditional_prob = True
+    binary_conditional_prob = False
+    submit = False
 
     train = pd.read_csv('data/train.csv')
     test = pd.read_csv("data/test.csv")
@@ -161,7 +162,6 @@ def train_baseline():
         logger.info("%s average validation auc %.4f ", c, np.mean(metrics[c]))
     logger.info("overall %.4f", np.mean(list(metrics.values())))
 
-    submit = True
     if submit:
         import kaggle
 
